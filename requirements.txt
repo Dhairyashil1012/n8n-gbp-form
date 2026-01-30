@@ -5,3 +5,4 @@ httpx
 python-dotenv
 pydantic
 requests
+pip install 'pydantic[email]'
