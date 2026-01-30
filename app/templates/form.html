@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GBP Entity Selector</title>
+  <style>
+    body { font-family: Arial; max-width: 600px; margin: auto; }
+    input, button { width: 100%; padding: 8px; margin: 6px 0; }
+    .suggestions { border: 1px solid #ccc; max-height: 150px; overflow-y: auto; }
+    .item { padding: 6px; cursor: pointer; }
+    .item:hover { background: #eee; }
+  </style>
+</head>
+<body>
+
+<h2>Company & Competitors</h2>
+
+<form id="gbpForm">
+
+  <input name="email" placeholder="Email" required>
+
+  <input id="company" placeholder="Company Name" autocomplete="off" required>
+  <div id="company_suggestions" class="suggestions"></div>
+
+  <input id="c1" placeholder="Competitor 1" autocomplete="off" required>
+  <div id="c1_suggestions" class="suggestions"></div>
+
+  <input id="c2" placeholder="Competitor 2" autocomplete="off" required>
+  <div id="c2_suggestions" class="suggestions"></div>
+
+  <input id="c3" placeholder="Competitor 3" autocomplete="off" required>
+  <div id="c3_suggestions" class="suggestions"></div>
+
+  <button type="submit">Submit</button>
+</form>
+
+<script>
+function setupAutocomplete(inputId, suggestionId) {
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(suggestionId);
+  let timer;
+
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      if (input.value.length < 2) {
+        box.innerHTML = "";
+        return;
+      }
+
+      const res = await fetch(`/autocomplete?query=${input.value}`);
+      const data = await res.json();
+      box.innerHTML = "";
+
+      data.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerText = item.name;
+
+        div.onclick = () => {
+          input.value = item.name;
+          input.dataset.placeId = item.place_id;
+          input.dataset.name = item.name;
+          box.innerHTML = "";
+        };
+
+        box.appendChild(div);
+      });
+    }, 300); // 🔥 debounce
+  });
+}
+
+setupAutocomplete("company", "company_suggestions");
+setupAutocomplete("c1", "c1_suggestions");
+setupAutocomplete("c2", "c2_suggestions");
+setupAutocomplete("c3", "c3_suggestions");
+
+document.getElementById("gbpForm").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  const email = document.querySelector("input[name='email']").value;
+  const ids = ["company", "c1", "c2", "c3"];
+
+  const companies = ids.map(id => {
+    const el = document.getElementById(id);
+    return {
+      name: el.dataset.name,
+      place_id: el.dataset.placeId
+    };
+  });
+
+  const payload = { email, companies };
+
+  const res = await fetch("/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (res.ok) {
+    alert("Submitted successfully");
+    e.target.reset();
+  } else {
+    alert("Submission failed");
+  }
+});
+</script>
+
+</body>
+</html>
