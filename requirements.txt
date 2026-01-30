@@ -3,6 +3,6 @@ uvicorn
 jinja2
 httpx
 python-dotenv
-pydantic
+pydantic[email]
 requests
-pip install 'pydantic[email]'
+pydantic
