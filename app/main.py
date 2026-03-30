@@ -7,8 +7,8 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, EmailStr, Field
 import httpx
 
-from app.services.google_places import autocomplete_business
-from app.config import N8N_WEBHOOK_URL
+from services.google_places import autocomplete_business
+from config import N8N_WEBHOOK_URL
 
 # -------------------------
 # Logging
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 # App
 # -------------------------
 app = FastAPI(title="Business Intake Service", version="1.0.0")
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory="templates")
 
 # -------------------------
 # Models
