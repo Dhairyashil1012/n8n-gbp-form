@@ -46,10 +46,12 @@ async def form_page(request: Request):
 
 
 @app.get("/autocomplete")
-async def autocomplete(query: str = Query(..., min_length=2)):
+async def autocomplete(query: str = Query(..., min_length=1)):
+    if len(query) < 2:
+        return JSONResponse([])
+
     try:
-        results = autocomplete_business(query)
-        return JSONResponse(results)
+        return JSONResponse(autocomplete_business(query))
     except Exception:
         logger.exception("Autocomplete failed")
         raise HTTPException(status_code=500, detail="Autocomplete failed")
@@ -58,9 +60,11 @@ async def autocomplete(query: str = Query(..., min_length=2)):
 @app.post("/submit")
 async def submit(data: SubmissionPayload = Body(...)):
     try:
-        logger.info("Sending to n8n: %s", data.model_dump())
+        logger.info("Sending data to n8n")
+        logger.info("Webhook URL: %s", N8N_WEBHOOK_URL)
+        logger.info("Payload: %s", data.model_dump())
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.post(
                 N8N_WEBHOOK_URL,
                 json=data.model_dump(),
