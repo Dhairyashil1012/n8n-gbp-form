@@ -1,5 +1,5 @@
 import requests
-from app.config import GOOGLE_API_KEY
+from config import GOOGLE_API_KEY
 
 GOOGLE_AUTOCOMPLETE_URL = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
 
@@ -17,6 +17,7 @@ def autocomplete_business(query: str):
     data = response.json()
 
     results = []
+
     for item in data.get("predictions", []):
         results.append({
             "name": item["description"],
