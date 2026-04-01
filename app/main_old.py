@@ -8,7 +8,7 @@ from pydantic import BaseModel, EmailStr, Field
 import httpx
 
 from app.services.google_places import autocomplete_business
-from config import N8N_WEBHOOK_URL
+from app.config import N8N_WEBHOOK_URL
 
 # -------------------------
 # Logging
