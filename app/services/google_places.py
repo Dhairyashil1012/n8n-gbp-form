@@ -24,4 +24,8 @@ def autocomplete_business(query: str):
             "place_id": item["place_id"],
         })
 
+<<<<<<< HEAD
     return results
+=======
+    return results
+>>>>>>> 3a63f1bb408dea3f920db3e9c311ba417b7d77a2
