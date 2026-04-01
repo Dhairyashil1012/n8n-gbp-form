@@ -1,5 +1,5 @@
 import requests
-from config import GOOGLE_API_KEY
+from app.config import GOOGLE_API_KEY
 
 GOOGLE_AUTOCOMPLETE_URL = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
 
