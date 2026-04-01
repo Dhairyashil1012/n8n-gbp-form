@@ -7,4 +7,3 @@ pydantic[email]
 requests
 pydantic
 
-United States Postal Service, US Highway 285, Nathrop, Colorado, USA
