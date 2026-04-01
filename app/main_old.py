@@ -23,7 +23,9 @@ logger = logging.getLogger(__name__)
 # App
 # -------------------------
 app = FastAPI(title="Business Intake Service", version="1.0.0")
-templates = Jinja2Templates(directory="templates")
+
+# Fix: Correct templates path for Render deployment
+templates = Jinja2Templates(directory="app/templates")
 
 # -------------------------
 # Models
@@ -42,16 +44,23 @@ class SubmissionPayload(BaseModel):
 # -------------------------
 @app.get("/", response_class=HTMLResponse)
 async def form_page(request: Request):
+    """
+    Render the business intake form page.
+    """
     return templates.TemplateResponse("form.html", {"request": request})
 
 
 @app.get("/autocomplete")
 async def autocomplete(query: str = Query(..., min_length=1)):
+    """
+    Autocomplete business names using Google Places.
+    """
     if len(query) < 2:
         return JSONResponse([])
 
     try:
-        return JSONResponse(autocomplete_business(query))
+        results = autocomplete_business(query)
+        return JSONResponse(results)
     except Exception:
         logger.exception("Autocomplete failed")
         raise HTTPException(status_code=500, detail="Autocomplete failed")
@@ -59,16 +68,17 @@ async def autocomplete(query: str = Query(..., min_length=1)):
 
 @app.post("/submit")
 async def submit(data: SubmissionPayload = Body(...)):
+    """
+    Submit form data to n8n webhook.
+    """
     try:
+        payload = data.model_dump()
         logger.info("Sending data to n8n")
         logger.info("Webhook URL: %s", N8N_WEBHOOK_URL)
-        logger.info("Payload: %s", data.model_dump())
+        logger.info("Payload: %s", payload)
 
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.post(
-                N8N_WEBHOOK_URL,
-                json=data.model_dump(),
-            )
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(N8N_WEBHOOK_URL, json=payload)
             resp.raise_for_status()
 
     except httpx.TimeoutException:
