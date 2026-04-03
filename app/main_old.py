@@ -1,7 +1,8 @@
 from typing import List
 import logging
+import os
 
-from fastapi import FastAPI, Request, Body, HTTPException, Query
+from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, EmailStr, Field
@@ -9,21 +10,6 @@ import httpx
 
 from app.services.google_places import autocomplete_business
 from app.config import N8N_WEBHOOK_URL
-# main.py
-from typing import List
-import logging
-import os
-
-from fastapi import FastAPI, Request, Body, HTTPException, Query
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, EmailStr, Field
-import httpx
-
-# -------------------------
-# Config
-# -------------------------
-N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL", "https://socioadminz.app.n8n.cloud/webhook/company-intake")
 
 # -------------------------
 # Logging
@@ -35,14 +21,21 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # -------------------------
+# Fix Template Path (IMPORTANT)
+# -------------------------
+# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+templates = Jinja2Templates(
+    directory=os.path.join(BASE_DIR,"app", "templates")
+)
+# -------------------------
 # App
 # -------------------------
-app = FastAPI(title="Business Intake Service", version="1.0.0")
-
-# Templates folder
-BASE_DIR = os.path.dirname(__file__)
-TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
-templates = Jinja2Templates(directory=TEMPLATES_DIR)
+app = FastAPI()
 
 # -------------------------
 # Models
@@ -50,6 +43,7 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 class Company(BaseModel):
     name: str = Field(..., min_length=1)
     place_id: str = Field(..., min_length=1)
+
 
 class SubmissionPayload(BaseModel):
     email: EmailStr
@@ -60,43 +54,40 @@ class SubmissionPayload(BaseModel):
 # -------------------------
 @app.get("/", response_class=HTMLResponse)
 async def form_page(request: Request):
-    template_path = os.path.join(TEMPLATES_DIR, "form.html")
-    if not os.path.exists(template_path):
-        logger.error("Template not found: %s", template_path)
-        raise HTTPException(status_code=500, detail="Template not found")
-    return templates.TemplateResponse("form.html", {"request": request})
+    return templates.TemplateResponse(
+        request,                 # ✅ FIRST argument
+        "form.html",             # ✅ template name
+        {"request": request}     # ✅ context
+    )
 
 @app.get("/autocomplete")
-async def autocomplete(query: str = Query(..., min_length=1)):
-    if len(query) < 2:
-        return JSONResponse([])
-
+async def autocomplete(query: str = Query(..., min_length=2)):
     try:
-        # Your actual autocomplete function
-        from app.services.google_places import autocomplete_business
-        results = autocomplete_business(query)
+        results = await autocomplete_business(query)
         return JSONResponse(results)
+
     except Exception:
-        logger.exception("Autocomplete failed, returning fallback data")
-        # Dummy fallback to prevent frontend crash
-        return JSONResponse([
-            {"name": "Test Business 1", "place_id": "dummy_1"},
-            {"name": "Test Business 2", "place_id": "dummy_2"},
-        ])
+        logger.exception("Autocomplete failed")
+        raise HTTPException(status_code=500, detail="Autocomplete failed")
+
 
 @app.post("/submit")
-async def submit(data: SubmissionPayload = Body(...)):
+async def submit(data: SubmissionPayload):
     try:
-        payload = data.model_dump()
-        logger.info("Sending data to n8n: %s", payload)
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(N8N_WEBHOOK_URL, json=payload)
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.post(
+                N8N_WEBHOOK_URL,
+                json=data.model_dump(),
+            )
             resp.raise_for_status()
+
     except httpx.TimeoutException:
         raise HTTPException(status_code=504, detail="n8n timeout")
+
     except httpx.HTTPStatusError as exc:
         logger.error("n8n error: %s", exc.response.text)
         raise HTTPException(status_code=502, detail="n8n error")
+
     except Exception:
         logger.exception("Unexpected error")
         raise HTTPException(status_code=500, detail="Internal error")
